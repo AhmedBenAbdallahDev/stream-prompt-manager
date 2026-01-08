@@ -1,38 +1,40 @@
 # stream-prompt-manager
 
-A small Vite + React + TypeScript app for creating and managing prompt blocks for streaming workflows. Now powered by a PostgreSQL database via Prisma and Express.
+A simple Vite + React + TypeScript app for managing prompt blocks. Powered by PostgreSQL via Prisma.
 
 ## Setup
 
-1.  **Install dependencies**:
+1.  **Install**:
     ```bash
     pnpm install
     ```
 
-2.  **Environment Variables**:
-    Create a `.env` file with your `DATABASE_URL`:
+2.  **Environment**:
+    Create a `.env` file:
     ```env
     DATABASE_URL="your-postgresql-url"
     ```
 
-3.  **Database Migration**:
+3.  **Database**:
     ```bash
     pnpm prisma db push
-    ```
-
-4.  **Seed Data** (Optional):
-    ```bash
     pnpm prisma db seed
     ```
 
-5.  **Run the app**:
+4.  **Run**:
     ```bash
-    pnpm run dev
+    pnpm dev
     ```
-    This starts both the Vite frontend (port 5173) and the Express backend (port 3001).
+
+## Deploy to Vercel
+
+1. Push to GitHub
+2. Import to Vercel
+3. Add `DATABASE_URL` to environment variables
+4. Deploy!
 
 ## Tech Stack
--   **Frontend**: React, Vite, TypeScript, Tailwind CSS, Lucide, GSAP, dnd-kit
--   **Backend**: Express, Node.js
--   **Database**: PostgreSQL (Neon), Prisma ORM
+-   React, Vite, TypeScript, Tailwind, Prisma
+-   PostgreSQL (Neon)
+-   Vercel Serverless Functions
 
