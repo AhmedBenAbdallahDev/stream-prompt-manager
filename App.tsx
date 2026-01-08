@@ -4,7 +4,7 @@ import Mixer from './components/Mixer';
 import EditorOverlay from './components/EditorOverlay';
 import QuickCreator from './components/QuickCreator';
 import { PromptBlockData, ToastMessage, ToastType } from './types';
-import { SEED_BLOCKS } from './constants';
+import { apiService } from './services/apiService';
 import { nanoid } from 'nanoid';
 import { Plus, Check, AlertCircle, Info, PanelRightClose, PanelRightOpen, Waves, LayoutGrid, Search, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
@@ -185,16 +185,7 @@ export const detectTags = (content: string): string[] => {
 };
 
 const App: React.FC = () => {
-  const [blocks, setBlocks] = useState<PromptBlockData[]>(() => {
-    try {
-      const saved = localStorage.getItem('promptstream-blocks');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.length > 0) return parsed;
-      }
-      return SEED_BLOCKS;
-    } catch (e) { return SEED_BLOCKS; }
-  });
+  const [blocks, setBlocks] = useState<PromptBlockData[]>([]);
 
   const [mixerIds, setMixerIds] = useState<string[]>([]);
   const [isMixerOpen, setIsMixerOpen] = useState(true); 
@@ -207,8 +198,16 @@ const App: React.FC = () => {
   const mainScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    localStorage.setItem('promptstream-blocks', JSON.stringify(blocks));
-  }, [blocks]);
+    const fetchBlocks = async () => {
+      try {
+        const data = await apiService.getBlocks();
+        setBlocks(data);
+      } catch (e) {
+        addToast("Failed to sync from database", 'error');
+      }
+    };
+    fetchBlocks();
+  }, []);
 
   const addToast = (message: string, type: ToastType = 'info') => {
     const id = nanoid();
@@ -283,56 +282,70 @@ const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [searchQuery]);
 
-  const handleCreateBlock = (content: string) => {
+  const handleCreateBlock = async (content: string) => {
     const firstLine = content.trim().split('\n')[0];
     const smartTitle = firstLine.length > 40 ? firstLine.substring(0, 40) + '...' : firstLine;
-    const autoTags = detectTags(content); // Now returns string[]
+    const autoTags = detectTags(content);
 
-    const newBlock: PromptBlockData = {
-      id: nanoid(),
-      type: 'context', 
-      title: smartTitle || 'Stream Node',
-      content: content,
-      tags: autoTags, 
-      isNew: true,
-    };
+    try {
+      const newBlock = await apiService.createBlock({
+        type: 'context',
+        title: smartTitle || 'Stream Node',
+        content: content,
+        tags: autoTags,
+        isTemp: false
+      });
 
-    setBlocks(prev => [newBlock, ...prev]);
-    addToast("Stream node added", 'success');
-    setIsCreating(false);
-    
-    // Auto Scroll to new content (Top)
-    setTimeout(scrollToTop, 100);
+      setBlocks(prev => [{ ...newBlock, isNew: true }, ...prev]);
+      addToast("Stream node added", 'success');
+      setIsCreating(false);
+      
+      setTimeout(scrollToTop, 100);
 
-    // Turn off 'isNew' flash after animation
-    setTimeout(() => {
-      setBlocks(prev => prev.map(b => b.id === newBlock.id ? { ...b, isNew: false } : b));
-    }, 2000);
+      setTimeout(() => {
+        setBlocks(prev => prev.map(b => b.id === newBlock.id ? { ...b, isNew: false } : b));
+      }, 2000);
+    } catch (e) {
+      addToast("Failed to save to database", 'error');
+    }
   };
 
-  const handleAddTempBlock = () => {
-    const newBlock: PromptBlockData = {
-        id: nanoid(),
+  const handleAddTempBlock = async () => {
+    try {
+      const newBlock = await apiService.createBlock({
         type: 'instruction',
         title: 'Quick Note',
         content: '',
         tags: ['Temp'],
         isTemp: true,
-        isNew: true
-    };
-    setBlocks(prev => [newBlock, ...prev]);
-    setMixerIds(prev => [...prev, newBlock.id]);
-    addToast("Stub added to rack", 'info');
+      });
+      setBlocks(prev => [{ ...newBlock, isNew: true }, ...prev]);
+      setMixerIds(prev => [...prev, newBlock.id]);
+      addToast("Stub added to rack", 'info');
+    } catch (e) {
+      addToast("Failed to create temporary block", 'error');
+    }
   };
 
-  const updateBlock = (id: string, updates: Partial<PromptBlockData>) => {
-    setBlocks(prev => prev.map(b => b.id === id ? { ...b, ...updates } : b));
+  const updateBlock = async (id: string, updates: Partial<PromptBlockData>) => {
+    try {
+      const updated = await apiService.updateBlock(id, updates);
+      setBlocks(prev => prev.map(b => b.id === id ? { ...b, ...updated } : b));
+    } catch (e) {
+      addToast("Failed to update database", 'error');
+    }
   };
 
-  const removeBlock = (id: string) => {
-    setBlocks(prev => prev.filter(b => b.id !== id));
-    setMixerIds(prev => prev.filter(mid => mid !== id));
-    if (focusedBlockId === id) setFocusedBlockId(null);
+  const removeBlock = async (id: string) => {
+    try {
+      await apiService.deleteBlock(id);
+      setBlocks(prev => prev.filter(b => b.id !== id));
+      setMixerIds(prev => prev.filter(mid => mid !== id));
+      if (focusedBlockId === id) setFocusedBlockId(null);
+      addToast("Node deleted", 'success');
+    } catch (e) {
+      addToast("Failed to delete from database", 'error');
+    }
   };
 
   const toggleMixerItem = (id: string) => {
