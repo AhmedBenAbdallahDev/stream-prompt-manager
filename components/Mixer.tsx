@@ -17,6 +17,7 @@ interface MixerProps {
   onCreateTemp: () => void;
   onUpdateBlock: (id: string, updates: Partial<PromptBlockData>) => void;
   onDeleteBlock: (id: string) => void;
+  onSaveAsNote: (content: string) => void;
   isOverlay?: boolean;
 }
 
@@ -140,10 +141,12 @@ const Mixer: React.FC<MixerProps> = ({
   onCreateTemp,
   onUpdateBlock,
   onDeleteBlock,
+  onSaveAsNote,
   isOverlay = false
 }) => {
   const [isCompiling, setIsCompiling] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const [showResultModal, setShowResultModal] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -189,13 +192,29 @@ const Mixer: React.FC<MixerProps> = ({
     onTriggerToast('Generating optimized prompt...', 'info');
     const res = await optimizePrompt(compiledPrompt);
     if (res.error) {
-      setResult(`Error: ${res.error}`);
       onTriggerToast('Optimization failed', 'error');
     } else {
       setResult(res.text);
+      setShowResultModal(true);
       onTriggerToast('Master prompt generated!', 'success');
     }
     setIsCompiling(false);
+  };
+
+  const handleSaveAsNote = () => {
+    if (result) {
+      onSaveAsNote(result);
+      setShowResultModal(false);
+      setResult(null);
+      onTriggerToast('Saved as new note!', 'success');
+    }
+  };
+
+  const handleCopyResult = () => {
+    if (result) {
+      navigator.clipboard.writeText(result);
+      onTriggerToast('Copied to clipboard!', 'success');
+    }
   };
 
   return (
@@ -302,23 +321,55 @@ const Mixer: React.FC<MixerProps> = ({
           <button
             onClick={handleOptimize}
             disabled={blocks.length === 0 || isCompiling}
-            className="w-full py-2 bg-gradient-to-r from-purple-600 to-indigo-600 border border-purple-500 text-white rounded-md text-[10px] font-bold uppercase tracking-widest hover:from-purple-500 hover:to-indigo-500 transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20"
+            className="w-full py-2 bg-[#222] border border-stone-700 text-stone-500 rounded-md text-[10px] font-bold uppercase tracking-widest hover:text-white hover:border-stone-500 transition-all flex items-center justify-center gap-2"
           >
             {isCompiling ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={14} />}
-            {isCompiling ? "Optimizing..." : "Generate Prompt"}
+            {isCompiling ? "Generating..." : "Generate Prompt"}
           </button>
         </div>
-
-        {result && (
-          <div className="p-4 bg-[#0a0a0a] border border-stone-800 rounded-md animate-in fade-in slide-in-from-bottom-2">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-[9px] font-bold uppercase text-purple-400 tracking-wider">✨ Optimized Prompt</span>
-              <button onClick={() => { navigator.clipboard.writeText(result); onTriggerToast("Log Copied", 'success'); }} className="text-stone-600 hover:text-white transition-colors"><Copy size={12} /></button>
-            </div>
-            <p className="text-[10px] font-mono text-stone-400 max-h-32 overflow-y-auto custom-scrollbar leading-relaxed">{result}</p>
-          </div>
-        )}
       </div>
+
+      {/* AI Result Modal */}
+      {showResultModal && result && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-2xl bg-[#161616] border border-stone-800 rounded-xl shadow-2xl flex flex-col max-h-[80vh] animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b border-stone-800">
+              <div className="flex items-center gap-2">
+                <Sparkles size={16} className="text-stone-400" />
+                <span className="text-sm font-bold text-stone-200 uppercase tracking-wider">Generated Prompt</span>
+              </div>
+              <button
+                onClick={() => { setShowResultModal(false); setResult(null); }}
+                className="p-1.5 text-stone-500 hover:text-white hover:bg-stone-800 rounded-md transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+              <pre className="text-sm font-mono text-stone-300 whitespace-pre-wrap leading-relaxed">{result}</pre>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="p-4 border-t border-stone-800 flex gap-3">
+              <button
+                onClick={handleCopyResult}
+                className="flex-1 py-3 bg-white text-black rounded-md text-xs font-bold uppercase tracking-widest hover:bg-stone-200 transition-all flex items-center justify-center gap-2"
+              >
+                <Copy size={14} /> Copy
+              </button>
+              <button
+                onClick={handleSaveAsNote}
+                className="flex-1 py-3 bg-[#222] border border-stone-700 text-stone-300 rounded-md text-xs font-bold uppercase tracking-widest hover:text-white hover:border-stone-500 transition-all flex items-center justify-center gap-2"
+              >
+                <StickyNote size={14} /> Save as Note
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
