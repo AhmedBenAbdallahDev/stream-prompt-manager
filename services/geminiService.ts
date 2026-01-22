@@ -1,27 +1,22 @@
-import { GoogleGenAI } from "@google/genai";
 import { GeminiResponse } from "../types";
 
 export const testPromptWithGemini = async (prompt: string): Promise<GeminiResponse> => {
-  if (!process.env.API_KEY) {
-    return { text: '', error: "API Key not found in environment." };
-  }
-
   try {
-    // Initialize Gemini Client
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-    // Using gemini-3-flash-preview for speed in testing prompts
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: prompt,
-      config: {
-        thinkingConfig: { thinkingBudget: 0 } // Disable thinking for quick feedback
-      }
+    const res = await fetch('/api/gemini', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
     });
 
-    return { text: response.text || "No response generated." };
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.error || 'Failed to call Gemini API');
+    }
+
+    const data = await res.json();
+    return { text: data.text };
   } catch (error: any) {
-    console.error("Gemini API Error:", error);
+    console.error("Gemini Proxy Error:", error);
     return { text: '', error: error.message || "Failed to generate response." };
   }
 };

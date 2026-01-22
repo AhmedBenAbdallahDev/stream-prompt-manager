@@ -1,39 +1,24 @@
-import { neon } from '@neondatabase/serverless';
 import { PromptBlockData } from '../types';
 
-// Use environment variables for database connection
-const DATABASE_URL = import.meta.env.VITE_NEON_DATABASE_URL;
+// Client-side service that talks to our Serverless API
+// This is secure because the database credentials stay on the Vercel server.
 
-if (!DATABASE_URL) {
-  console.warn('VITE_NEON_DATABASE_URL is not defined in your .env file.');
-}
-
-const sql = neon(DATABASE_URL || '');
+const API_URL = '/api/blocks';
 
 // Initialize the database table
 export async function initDatabase(): Promise<void> {
-  await sql`
-    CREATE TABLE IF NOT EXISTS prompt_blocks (
-      id TEXT PRIMARY KEY,
-      type TEXT NOT NULL,
-      title TEXT NOT NULL,
-      content TEXT NOT NULL,
-      tags TEXT[] DEFAULT '{}',
-      created_at TIMESTAMP DEFAULT NOW(),
-      updated_at TIMESTAMP DEFAULT NOW()
-    )
-  `;
+  const res = await fetch(`${API_URL}?action=init`);
+  if (!res.ok) throw new Error('Failed to initialize database');
 }
 
 // Get all blocks from the database
 export async function getAllBlocks(): Promise<PromptBlockData[]> {
-  const rows = await sql`
-    SELECT id, type, title, content, tags 
-    FROM prompt_blocks 
-    ORDER BY created_at DESC
-  `;
-  
-  return rows.map(row => ({
+  const res = await fetch(API_URL);
+  if (!res.ok) throw new Error('Failed to fetch blocks');
+
+  const rows = await res.json();
+
+  return rows.map((row: any) => ({
     id: row.id,
     type: row.type as PromptBlockData['type'],
     title: row.title,
@@ -45,40 +30,37 @@ export async function getAllBlocks(): Promise<PromptBlockData[]> {
 
 // Create a new block
 export async function createBlock(block: PromptBlockData): Promise<void> {
-  await sql`
-    INSERT INTO prompt_blocks (id, type, title, content, tags)
-    VALUES (${block.id}, ${block.type}, ${block.title}, ${block.content}, ${block.tags})
-  `;
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(block)
+  });
+  if (!res.ok) throw new Error('Failed to create block');
 }
 
 // Update an existing block
 export async function updateBlock(id: string, updates: Partial<PromptBlockData>): Promise<void> {
-  const { type, title, content, tags } = updates;
-  
-  await sql`
-    UPDATE prompt_blocks 
-    SET 
-      type = COALESCE(${type ?? null}, type),
-      title = COALESCE(${title ?? null}, title),
-      content = COALESCE(${content ?? null}, content),
-      tags = COALESCE(${tags ?? null}, tags),
-      updated_at = NOW()
-    WHERE id = ${id}
-  `;
+  const res = await fetch(API_URL, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ updateId: id, updates })
+  });
+  if (!res.ok) throw new Error('Failed to update block');
 }
 
 // Delete a block
 export async function deleteBlock(id: string): Promise<void> {
-  await sql`DELETE FROM prompt_blocks WHERE id = ${id}`;
+  const res = await fetch(`${API_URL}?deleteId=${id}`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) throw new Error('Failed to delete block');
 }
 
 // Seed the database with initial blocks (only if empty)
 export async function seedDatabase(): Promise<boolean> {
-  const count = await sql`SELECT COUNT(*) as count FROM prompt_blocks`;
-  
-  if (parseInt(count[0].count) > 0) {
-    return false; // Already has data
-  }
+  // Check if we already have blocks first to avoid double seeding
+  const blocks = await getAllBlocks();
+  if (blocks.length > 0) return false;
 
   const seedBlocks: PromptBlockData[] = [
     {
@@ -144,5 +126,5 @@ export async function seedDatabase(): Promise<boolean> {
     await createBlock(block);
   }
 
-  return true; // Seeded successfully
+  return true;
 }
