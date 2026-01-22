@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { PromptBlockData } from '../types';
-import { Copy, X, Disc, Loader2, Trash2, Sparkles, Server, Plus, StickyNote } from 'lucide-react';
+import { Copy, X, Disc, Loader2, Trash2, Sparkles, Server, Plus } from 'lucide-react';
 import { optimizePrompt } from '../services/optimizeService';
 import { DndContext, rectIntersection, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
@@ -329,42 +329,51 @@ const Mixer: React.FC<MixerProps> = ({
         </div>
       </div>
 
-      {/* AI Result Modal */}
+      {/* Result Modal */}
       {showResultModal && result && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-2xl bg-[#161616] border border-stone-800 rounded-xl shadow-2xl flex flex-col max-h-[80vh] animate-in zoom-in-95 duration-200">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 border-b border-stone-800">
-              <div className="flex items-center gap-2">
-                <Sparkles size={16} className="text-stone-400" />
-                <span className="text-sm font-bold text-stone-200 uppercase tracking-wider">Generated Prompt</span>
-              </div>
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-6"
+          onClick={() => { setShowResultModal(false); setResult(null); }}
+        >
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+
+          {/* Modal Card - styled like PromptCard */}
+          <div
+            className="relative w-full max-w-2xl bg-[#161616] border border-stone-800 rounded-lg shadow-[0_25px_80px_rgba(0,0,0,0.8)] flex flex-col max-h-[85vh] transition-all duration-500 ease-out opacity-100 scale-100 animate-flash-border"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header - Minimal */}
+            <div className="flex items-center justify-between p-5 border-b border-stone-900">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-stone-500">Optimized Output</span>
               <button
                 onClick={() => { setShowResultModal(false); setResult(null); }}
-                className="p-1.5 text-stone-500 hover:text-white hover:bg-stone-800 rounded-md transition-colors"
+                className="p-1 text-stone-600 hover:text-white transition-colors"
               >
-                <X size={16} />
+                <X size={14} />
               </button>
             </div>
 
-            {/* Modal Content */}
-            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-              <pre className="text-sm font-mono text-stone-300 whitespace-pre-wrap leading-relaxed">{result}</pre>
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
+              <p className="text-sm font-mono text-stone-300 whitespace-pre-wrap leading-relaxed">{result}</p>
+              {/* Subtle fade at bottom */}
+              <div className="sticky bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-[#161616] to-transparent pointer-events-none" />
             </div>
 
-            {/* Modal Actions */}
-            <div className="p-4 border-t border-stone-800 flex gap-3">
+            {/* Footer Actions */}
+            <div className="p-5 border-t border-stone-900 flex gap-3">
               <button
                 onClick={handleCopyResult}
-                className="flex-1 py-3 bg-white text-black rounded-md text-xs font-bold uppercase tracking-widest hover:bg-stone-200 transition-all flex items-center justify-center gap-2"
+                className="flex-1 py-3 bg-white text-black rounded-md text-[10px] font-bold uppercase tracking-widest hover:bg-stone-200 transition-all flex items-center justify-center gap-2"
               >
-                <Copy size={14} /> Copy
+                <Copy size={12} /> Copy
               </button>
               <button
                 onClick={handleSaveAsNote}
-                className="flex-1 py-3 bg-[#222] border border-stone-700 text-stone-300 rounded-md text-xs font-bold uppercase tracking-widest hover:text-white hover:border-stone-500 transition-all flex items-center justify-center gap-2"
+                className="flex-1 py-3 bg-[#0a0a0a] border border-stone-800 text-stone-400 rounded-md text-[10px] font-bold uppercase tracking-widest hover:text-white hover:border-stone-600 transition-all flex items-center justify-center gap-2"
               >
-                <StickyNote size={14} /> Save as Note
+                <Plus size={12} /> Create Note
               </button>
             </div>
           </div>
